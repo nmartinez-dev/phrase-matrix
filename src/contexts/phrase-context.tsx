@@ -15,7 +15,7 @@ interface PhraseContextType {
 
 const PhraseContext = createContext<PhraseContextType | undefined>(undefined);
 
-const LOCAL_STORAGE_KEY = 'phraseMatrixApp_phrases_es'; // Changed key to avoid conflicts if user switches lang
+const LOCAL_STORAGE_KEY = 'phraseMatrixApp_phrases_es';
 
 type PhraseProviderProps = {
   children: ReactNode;
