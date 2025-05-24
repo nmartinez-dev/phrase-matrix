@@ -1,7 +1,7 @@
-# Phrase Matrix
+# Matriz de frases
 
 ## Descripción
-Phrase Matrix es una aplicación web moderna diseñada para ayudarte a organizar y visualizar frases y conceptos de manera intuitiva. La aplicación te permite crear, gestionar y visualizar relaciones entre diferentes frases en un formato matricial interactivo.
+Matriz de frases es una aplicación web moderna diseñada para ayudarte a organizar y visualizar frases y conceptos de manera intuitiva. La aplicación te permite crear, gestionar y visualizar relaciones entre diferentes frases en un formato matricial interactivo.
 
 ## Características Principales
 - 🎯 Interfaz de usuario moderna y responsiva
