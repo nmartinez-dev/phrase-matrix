@@ -18,12 +18,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { memo } from 'react';
 
 type PhraseCardProps = {
   phrase: Phrase;
 };
 
-const PhraseCard = (props: PhraseCardProps) => {
+const PhraseCard = memo((props: PhraseCardProps) => {
   const { phrase } = props;
 
   const { deletePhrase } = usePhrases();
@@ -68,6 +69,8 @@ const PhraseCard = (props: PhraseCardProps) => {
       </CardFooter>
     </Card>
   );
-}
+});
+
+PhraseCard.displayName = 'PhraseCard';
 
 export default PhraseCard;
