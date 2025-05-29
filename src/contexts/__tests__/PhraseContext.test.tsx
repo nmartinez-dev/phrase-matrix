@@ -1,4 +1,4 @@
-import React, { type ReactNode, type ReactElement } from 'react';
+import React, { type ReactElement } from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { PhraseProvider, usePhrases } from '@/contexts/phrase-context';
 import type { Phrase } from '@/types';
@@ -184,5 +184,31 @@ describe('PhraseContext', () => {
       }));
     });
     expect(screen.getByTestId('phrases-count').textContent).toBe('0');
+  });
+
+  it('no añade una frase duplicada y muestra un toast', async () => {
+    renderWithProvider(<TestConsumerComponent />);
+    const addButton = screen.getByText('Añadir Frase');
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('1');
+    });
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Error de Validación",
+        description: "Esta frase ya existe en la matriz.",
+        variant: "destructive",
+      }));
+    });
+    expect(screen.getByTestId('phrases-count').textContent).toBe('1');
   });
 });

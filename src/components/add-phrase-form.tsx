@@ -9,15 +9,20 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { usePhrases } from "@/contexts/phrase-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle } from "lucide-react";
+import { useState } from "react";
 
 const formSchema = z.object({
-  phraseText: z.string().min(1, "La frase no puede estar vacía.").max(280, "La frase es demasiado larga."),
+  phraseText: z.string()
+    .min(1, "La frase no puede estar vacía.")
+    .max(280, "La frase es demasiado larga.")
+    .transform(val => val.trim()),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
 const AddPhraseForm = () => {
   const { addPhrase } = usePhrases();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -26,9 +31,14 @@ const AddPhraseForm = () => {
     },
   });
 
-  const onSubmit: SubmitHandler<FormData> = (data) => {
-    addPhrase(data.phraseText);
-    form.reset();
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
+    setIsSubmitting(true);
+    try {
+      await addPhrase(data.phraseText);
+      form.reset();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -53,6 +63,7 @@ const AddPhraseForm = () => {
                       placeholder="Escribe tu frase inspiradora aquí..."
                       className="min-h-[80px] resize-none focus:ring-accent focus:border-accent rounded-md"
                       aria-label="Texto de la nueva frase"
+                      disabled={isSubmitting}
                       {...field}
                     />
                   </FormControl>
@@ -60,8 +71,12 @@ const AddPhraseForm = () => {
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-md">
-              Añadir frase
+            <Button 
+              type="submit" 
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-md"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Añadiendo..." : "Añadir frase"}
             </Button>
           </form>
         </Form>

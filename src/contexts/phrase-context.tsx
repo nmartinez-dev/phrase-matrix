@@ -67,9 +67,24 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
       });
       return;
     }
+
+    const normalizedText = text.trim().toLowerCase();
+    const isDuplicate = phrases.some(phrase => 
+      phrase.text.toLowerCase() === normalizedText
+    );
+
+    if (isDuplicate) {
+      toast({
+        title: "Error de Validación",
+        description: "Esta frase ya existe en la matriz.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const newPhrase: Phrase = {
       id: crypto.randomUUID(),
-      text,
+      text: text.trim(),
       createdAt: new Date(),
     };
     setPhrases(prevPhrases => [newPhrase, ...prevPhrases]);
@@ -77,7 +92,7 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
       title: "Éxito",
       description: "¡Frase añadida con éxito!",
     });
-  }, [toast]);
+  }, [toast, phrases]);
 
   const deletePhrase = useCallback((id: string) => {
     setPhrases(prevPhrases => prevPhrases.filter(phrase => phrase.id !== id));
