@@ -3,6 +3,7 @@
 import type { Phrase } from '@/types';
 import React, { createContext, useContext, useState, useEffect, useMemo, type ReactNode, useCallback } from 'react';
 import { useToast } from "@/hooks/use-toast";
+import DOMPurify from 'dompurify';
 
 interface PhraseContextType {
   phrases: Phrase[];
@@ -58,8 +59,18 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
     }
   }, [phrases, toast]);
 
+  const sanitizeText = useCallback((text: string): string => {
+    const sanitized = DOMPurify.sanitize(text, {
+      ALLOWED_TAGS: [],
+      ALLOWED_ATTR: [],
+    });
+    return sanitized.trim();
+  }, []);
+
   const addPhrase = useCallback((text: string) => {
-    if (!text.trim()) {
+    const sanitizedText = sanitizeText(text);
+
+    if (!sanitizedText) {
       toast({
         title: "Error de Validación",
         description: "El texto de la frase no puede estar vacío.",
@@ -68,7 +79,7 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
       return;
     }
 
-    if (text.trim().length > 280) {
+    if (sanitizedText.length > 280) {
       toast({
         title: "Error de Validación",
         description: "La frase no puede tener más de 280 caracteres.",
@@ -77,8 +88,8 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
       return;
     }
 
-    const normalizedText = text.trim().toLowerCase();
-    const isDuplicate = phrases.some(phrase => 
+    const normalizedText = sanitizedText.toLowerCase();
+    const isDuplicate = phrases.some(phrase =>
       phrase.text.toLowerCase() === normalizedText
     );
 
@@ -93,7 +104,7 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
 
     const newPhrase: Phrase = {
       id: crypto.randomUUID(),
-      text: text.trim(),
+      text: sanitizedText,
       createdAt: new Date(),
     };
     setPhrases(prevPhrases => [newPhrase, ...prevPhrases]);
@@ -101,7 +112,7 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
       title: "Éxito",
       description: "¡Frase añadida con éxito!",
     });
-  }, [toast, phrases]);
+  }, [toast, phrases, sanitizeText]);
 
   const deletePhrase = useCallback((id: string) => {
     setPhrases(prevPhrases => prevPhrases.filter(phrase => phrase.id !== id));
