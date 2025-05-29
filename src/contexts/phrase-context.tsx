@@ -68,6 +68,15 @@ export const PhraseProvider = (props: PhraseProviderProps) => {
       return;
     }
 
+    if (text.trim().length > 280) {
+      toast({
+        title: "Error de Validación",
+        description: "La frase no puede tener más de 280 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const normalizedText = text.trim().toLowerCase();
     const isDuplicate = phrases.some(phrase => 
       phrase.text.toLowerCase() === normalizedText

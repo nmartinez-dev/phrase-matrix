@@ -330,4 +330,190 @@ describe('PhraseContext', () => {
 
     console.error = originalConsoleError;
   });
+
+  it('maneja correctamente el error al guardar en localStorage', async () => {
+    const originalConsoleError = console.error;
+    console.error = jest.fn();
+
+    const mockLocalStorage = {
+      getItem: jest.fn(() => '[]'),
+      setItem: jest.fn(() => {
+        throw new Error('Error de escritura');
+      }),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent testPhrase="Frase de prueba" />);
+    const addButton = screen.getByText('Añadir Frase');
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Error",
+        description: "No se pudieron guardar las frases en el almacenamiento.",
+        variant: "destructive",
+      }));
+    });
+
+    console.error = originalConsoleError;
+  });
+
+  it('maneja correctamente datos corruptos en localStorage', async () => {
+    const originalConsoleError = console.error;
+    console.error = jest.fn();
+
+    const mockLocalStorage = {
+      getItem: jest.fn(() => 'datos corruptos'),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent />);
+
+    await waitFor(() => {
+      expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Error",
+        description: "No se pudieron cargar las frases del almacenamiento.",
+        variant: "destructive",
+      }));
+    });
+    expect(screen.getByTestId('phrases-count').textContent).toBe('0');
+
+    console.error = originalConsoleError;
+  });
+
+  it('maneja correctamente frases con longitud máxima', async () => {
+    const longPhrase = 'a'.repeat(280);
+    const mockLocalStorage = {
+      getItem: jest.fn(() => '[]'),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent testPhrase={longPhrase} />);
+    const addButton = screen.getByText('Añadir Frase');
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('1');
+    });
+    expect(screen.getByText(longPhrase)).toBeInTheDocument();
+  });
+
+  it('rechaza frases que exceden la longitud máxima', async () => {
+    const tooLongPhrase = 'a'.repeat(281);
+    const mockLocalStorage = {
+      getItem: jest.fn(() => '[]'),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent testPhrase={tooLongPhrase} />);
+    const addButton = screen.getByText('Añadir Frase');
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Error de Validación",
+        description: "La frase no puede tener más de 280 caracteres.",
+        variant: "destructive",
+      }));
+    });
+    expect(screen.getByTestId('phrases-count').textContent).toBe('0');
+    expect(screen.queryByText(tooLongPhrase)).not.toBeInTheDocument();
+  });
+
+  it('maneja correctamente la eliminación de una frase inexistente', async () => {
+    const mockLocalStorage = {
+      getItem: jest.fn(() => '[]'),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent />);
+    const deleteButton = screen.getByText('Eliminar Primera Frase');
+
+    act(() => {
+      fireEvent.click(deleteButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('0');
+    });
+    expect(mockToastFn).not.toHaveBeenCalled();
+  });
+
+  it('maneja correctamente la búsqueda con caracteres especiales en el término de búsqueda', async () => {
+    const initialPhrases: Phrase[] = [
+      { id: '1', text: 'Frase normal', createdAt: new Date() },
+      { id: '2', text: 'Frase con !@#$%', createdAt: new Date() },
+    ];
+    const mockLocalStorage = {
+      getItem: jest.fn(() => JSON.stringify(initialPhrases)),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('2');
+    });
+
+    const searchInput = screen.getByLabelText('search-term-input');
+    act(() => {
+      fireEvent.change(searchInput, { target: { value: '!@#$%' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('filtered-phrases-count').textContent).toBe('1');
+    });
+    expect(screen.getByText('Frase con !@#$%')).toBeInTheDocument();
+    expect(screen.queryByText('Frase normal')).not.toBeInTheDocument();
+  });
+
+  it('maneja correctamente la búsqueda con expresiones regulares especiales', async () => {
+    const initialPhrases: Phrase[] = [
+      { id: '1', text: 'Frase con [caracteres]', createdAt: new Date() },
+      { id: '2', text: 'Frase normal', createdAt: new Date() },
+    ];
+    const mockLocalStorage = {
+      getItem: jest.fn(() => JSON.stringify(initialPhrases)),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('2');
+    });
+
+    const searchInput = screen.getByLabelText('search-term-input');
+    act(() => {
+      fireEvent.change(searchInput, { target: { value: '[caracteres]' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('filtered-phrases-count').textContent).toBe('1');
+    });
+    expect(screen.getByText('Frase con [caracteres]')).toBeInTheDocument();
+    expect(screen.queryByText('Frase normal')).not.toBeInTheDocument();
+  });
 });
