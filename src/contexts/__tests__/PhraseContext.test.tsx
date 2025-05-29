@@ -10,11 +10,11 @@ jest.mock('@/hooks/use-toast', () => ({
   })),
 }));
 
-const TestConsumerComponent = () => {
+const TestConsumerComponent = ({ testPhrase }: { testPhrase?: string } = {}) => {
   const { phrases, searchTerm, addPhrase, deletePhrase, setSearchTerm, filteredPhrases } = usePhrases();
   return (
     <div>
-      <button onClick={() => addPhrase('Nueva frase de prueba')}>Añadir Frase</button>
+      <button onClick={() => addPhrase(testPhrase || 'Nueva frase de prueba')}>Añadir Frase</button>
       <button onClick={() => phrases.length > 0 && deletePhrase(phrases[0].id)}>Eliminar Primera Frase</button>
       <input
         type="text"
@@ -210,5 +210,124 @@ describe('PhraseContext', () => {
       }));
     });
     expect(screen.getByTestId('phrases-count').textContent).toBe('1');
+  });
+
+  it('maneja correctamente la búsqueda sin resultados', async () => {
+    const initialPhrases: Phrase[] = [
+      { id: '1', text: 'Manzana roja', createdAt: new Date() },
+      { id: '2', text: 'Banana amarilla', createdAt: new Date() },
+    ];
+    localStorage.setItem('phraseMatrixApp_phrases_es', JSON.stringify(initialPhrases));
+
+    renderWithProvider(<TestConsumerComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('2');
+    });
+
+    const searchInput = screen.getByLabelText('search-term-input');
+    act(() => {
+      fireEvent.change(searchInput, { target: { value: 'pera' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('filtered-phrases-count').textContent).toBe('0');
+    });
+    expect(screen.queryByText('Manzana roja')).not.toBeInTheDocument();
+    expect(screen.queryByText('Banana amarilla')).not.toBeInTheDocument();
+  });
+
+  it('maneja correctamente la eliminación con lista vacía', async () => {
+    renderWithProvider(<TestConsumerComponent />);
+    const deleteButton = screen.getByText('Eliminar Primera Frase');
+
+    act(() => {
+      fireEvent.click(deleteButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('0');
+    });
+    expect(mockToastFn).not.toHaveBeenCalled();
+  });
+
+  it('maneja correctamente frases con caracteres especiales', async () => {
+    renderWithProvider(<TestConsumerComponent testPhrase="¡Hola! ¿Cómo estás? #Test @Usuario" />);
+    const addButton = screen.getByText('Añadir Frase');
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('1');
+    });
+    expect(screen.getByText('¡Hola! ¿Cómo estás? #Test @Usuario')).toBeInTheDocument();
+  });
+
+  it('maneja correctamente frases con espacios múltiples', async () => {
+    renderWithProvider(<TestConsumerComponent testPhrase="  Frase  con  espacios  múltiples  " />);
+    const addButton = screen.getByText('Añadir Frase');
+
+    act(() => {
+      fireEvent.click(addButton);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('1');
+    });
+    expect(screen.getByText('Frase con espacios múltiples')).toBeInTheDocument();
+  });
+
+  it('maneja correctamente la búsqueda con caracteres especiales', async () => {
+    const initialPhrases: Phrase[] = [
+      { id: '1', text: '¡Hola! ¿Cómo estás?', createdAt: new Date() },
+      { id: '2', text: 'Buenos días', createdAt: new Date() },
+    ];
+    localStorage.setItem('phraseMatrixApp_phrases_es', JSON.stringify(initialPhrases));
+
+    renderWithProvider(<TestConsumerComponent />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('phrases-count').textContent).toBe('2');
+    });
+
+    const searchInput = screen.getByLabelText('search-term-input');
+    act(() => {
+      fireEvent.change(searchInput, { target: { value: '¡Hola!' } });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId('filtered-phrases-count').textContent).toBe('1');
+    });
+    expect(screen.getByText('¡Hola! ¿Cómo estás?')).toBeInTheDocument();
+    expect(screen.queryByText('Buenos días')).not.toBeInTheDocument();
+  });
+
+  it('maneja correctamente el error de localStorage', async () => {
+    const originalConsoleError = console.error;
+    console.error = jest.fn();
+
+    const mockLocalStorage = {
+      getItem: jest.fn(() => {
+        throw new Error('Error de acceso');
+      }),
+      setItem: jest.fn(),
+      clear: jest.fn(),
+    };
+    Object.defineProperty(window, 'localStorage', { value: mockLocalStorage });
+
+    renderWithProvider(<TestConsumerComponent />);
+
+    await waitFor(() => {
+      expect(mockToastFn).toHaveBeenCalledWith(expect.objectContaining({
+        title: "Error",
+        description: "No se pudieron cargar las frases del almacenamiento.",
+        variant: "destructive",
+      }));
+    });
+    expect(screen.getByTestId('phrases-count').textContent).toBe('0');
+
+    console.error = originalConsoleError;
   });
 });
